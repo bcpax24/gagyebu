@@ -199,7 +199,7 @@ label.lb{display:block; font-size:12.5px; color:var(--ink-2); margin:10px 0 5px}
 
 <script>
 'use strict';
-const BUILD = 'v1 (2026-11-03)';
+const BUILD = 'v1.1 (2026-11-03)';
 const LS = { cfg:'gb.cfg', last:'gb.lastWallet', outbox:'gb.outbox', incCorp:'gb.incCorp' };
 const KIND = { credit:'신용', check:'체크', corp:'법인', bank:'통장', cash:'현금' };
 const DEFAULT_WALLETS = [
@@ -231,7 +231,7 @@ const DOW = '일월화수목금토';
 const dayLabel = s => { const d = new Date(s+'T00:00:00'); return `${d.getMonth()+1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`; };
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID() :
   'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15; return (c==='x'?r:(r&3|8)).toString(16); }));
-const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v==null ? d : JSON.parse(v); } catch { return d; } };
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); const p = v==null ? null : JSON.parse(v); return p==null ? d : p; } catch { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { showErr('기기 저장 실패: '+e.message); } };
 const isNetErr = e => !navigator.onLine || /fetch|network|Load failed|NetworkError/i.test(e?.message||String(e));
 async function q(p){ const { data, error } = await p; if (error) throw error; return data; }
@@ -289,7 +289,7 @@ if (window.visualViewport) {
    ===================================================================== */
 async function boot(){
   const cfg = lsGet(LS.cfg, null);
-  if (!cfg || !window.supabase) { renderSetup(!window.supabase); return; }
+  if (!cfg || !cfg.url || !cfg.key || !window.supabase) { renderSetup(!window.supabase); return; }
   sb = window.supabase.createClient(cfg.url, cfg.key, { auth:{ persistSession:true, autoRefreshToken:true } });
   const { data } = await sb.auth.getSession();
   user = data.session?.user || null;
@@ -957,7 +957,7 @@ async function act(el, e){
       if (!/^https:\/\/.+/.test(url) || key.length < 20) return showErr('URL(https://…supabase.co)과 anon key를 확인해줘.');
       lsSet(LS.cfg, { url, key }); return boot();
     }
-    case 'resetCfg': lsSet(LS.cfg, null); return renderSetup();
+    case 'resetCfg': try { localStorage.removeItem(LS.cfg); } catch {} return renderSetup();
     case 'login': return doAuth(false);
     case 'signup': return doAuth(true);
     case 'logout': await sb.auth.signOut(); user = null; return renderLogin();
