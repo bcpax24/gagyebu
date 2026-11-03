@@ -199,7 +199,7 @@ label.lb{display:block; font-size:12.5px; color:var(--ink-2); margin:10px 0 5px}
 
 <script>
 'use strict';
-const BUILD = 'v1.1 (2026-11-03)';
+const BUILD = 'v1.2';
 const LS = { cfg:'gb.cfg', last:'gb.lastWallet', outbox:'gb.outbox', incCorp:'gb.incCorp' };
 const KIND = { credit:'신용', check:'체크', corp:'법인', bank:'통장', cash:'현금' };
 const DEFAULT_WALLETS = [
@@ -252,7 +252,7 @@ const C = id => S.cats.find(c => c.id===id);
 const inStats = t => S.incCorp || !t.wallet_id || (W(t.wallet_id)?.include_in_stats ?? true);
 
 /* ---------- error banner ---------- */
-function showErr(msg){ const b = $('#errbar'); b.textContent = msg + '  (탭하면 닫힘)'; b.classList.add('show'); }
+function showErr(msg){ const b = $('#errbar'); b.textContent = `[${BUILD}] ` + msg + '  (탭하면 닫힘)'; b.classList.add('show'); }
 $('#errbar').onclick = () => $('#errbar').classList.remove('show');
 window.addEventListener('error', e => showErr('오류: ' + e.message));
 window.addEventListener('unhandledrejection', e => showErr('오류: ' + (e.reason?.message || e.reason)));
@@ -299,7 +299,7 @@ async function boot(){
 
 function renderSetup(noLib){
   $('#tabs').classList.add('hidden');
-  const cfg = lsGet(LS.cfg, {});
+  const cfg = lsGet(LS.cfg, {}) || {};
   $('#main').innerHTML = `<div class="view"><div class="setup">
     <h1>가계부 연결</h1>
     <p>Supabase 프로젝트의 <b>Project URL</b>과 <b>공개 키</b>(publishable 또는 anon)를 넣어줘.<br>
@@ -312,6 +312,7 @@ function renderSetup(noLib){
     <input class="field" id="cfgKey" placeholder="eyJhbGciOi..." autocapitalize="off" autocorrect="off" value="${esc(cfg.key||'')}">
     <div style="height:16px"></div>
     <button class="btn" style="width:100%" data-act="saveCfg">연결</button>
+    <p class="muted" style="margin-top:24px">빌드 ${BUILD}</p>
   </div></div>`;
 }
 
@@ -697,7 +698,7 @@ function drawCum(cur, prev, upto){
 
 /* ---------- 설정 ---------- */
 function renderSettings(){
-  const cfg = lsGet(LS.cfg, {});
+  const cfg = lsGet(LS.cfg, {}) || {};
   const endpoint = (cfg.url||'').replace(/\/+$/,'') + '/rest/v1/rpc/ingest_sms';
   const standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
   $('#main').innerHTML = `<div class="view">
@@ -1010,7 +1011,7 @@ async function act(el, e){
       return;
     }
     case 'copyAll': {
-      const cfg = lsGet(LS.cfg, {});
+      const cfg = lsGet(LS.cfg, {}) || {};
       const txt = `URL: ${cfg.url}/rest/v1/rpc/ingest_sms\napikey: ${cfg.key}\np_token: ${S.token}`;
       try { await navigator.clipboard.writeText(txt); toast('복사됨'); } catch { showErr('복사 실패 — 각 칸을 길게 눌러 복사해줘'); }
       return;
@@ -1064,7 +1065,11 @@ async function exportCsv(scope){
   const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
-boot().catch(e => showErr('시작 실패: ' + e.message));
+boot().catch(e => {
+  // 어떤 이유로든 시작이 실패하면 멈추지 말고 연결 화면으로 복구
+  showErr('시작 실패: ' + e.message);
+  try { if (!user) renderSetup(!window.supabase); } catch {}
+});
 </script>
 </body>
 </html>
